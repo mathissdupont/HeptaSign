@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum DocumentStatus {
+  DRAFT
+  SIGNED
+  REVOKED
+  SUPERSEDED
+}
+
+model User {
+  id           String              @id @default(cuid())
+  name         String
+  email        String              @unique
+  passwordHash String
+  role         UserRole            @default(USER)
+  title        String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  documents    Document[]          @relation("CreatedDocuments")
+  signatures   DocumentSignature[]
+  assignments  DocumentAssignment[]
+  auditLogs    AuditLog[]
+}
+
+model Document {
+  id               String              @id @default(cuid())
+  documentCode     String              @unique
+  title            String
+  description      String?
+  status           DocumentStatus      @default(DRAFT)
+  originalFilePath String
+  signedFilePath   String?
+  originalFileHash String?
+  signedFileHash   String?
+  verificationToken String?            @unique
+  createdById      String
+  createdBy        User                @relation("CreatedDocuments", fields: [createdById], references: [id])
+  signatures       DocumentSignature[]
+  files            DocumentFile[]
+  assignments      DocumentAssignment[]
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([title])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model DocumentFile {
+  id        String   @id @default(cuid())
+  documentId String
+  document  Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  kind      String
+  filePath  String
+  fileHash  String?
+  createdAt DateTime @default(now())
+
+  @@index([documentId])
+}
+
+model DocumentAssignment {
+  id         String    @id @default(cuid())
+  documentId String
+  document   Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedById String?
+  status     String    @default("PENDING")
+  signedAt   DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([documentId, userId])
+  @@index([userId])
+  @@index([documentId])
+}
+
+model DocumentSignature {
+  id                String   @id @default(cuid())
+  documentId        String
+  document          Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  signedById        String
+  signedBy          User     @relation(fields: [signedById], references: [id])
+  signedByName      String
+  signedByRole      String
+  signedAt          DateTime @default(now())
+  ipAddress         String?
+  userAgent         String?
+  originalFileHash  String
+  signedFileHash    String
+  verificationToken String   @unique
+  createdAt         DateTime @default(now())
+
+  @@index([documentId])
+  @@index([signedAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

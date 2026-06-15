@@ -1,0 +1,9 @@
+node_modules
+.next
+tsconfig.tsbuildinfo
+.env
+/logo.png
+storage/originals/*
+storage/signed/*
+!storage/originals/.gitkeep
+!storage/signed/.gitkeep
